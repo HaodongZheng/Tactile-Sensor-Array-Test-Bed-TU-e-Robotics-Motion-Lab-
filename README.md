@@ -1,8 +1,24 @@
-# Tactile Sensor Array Test Bed (TU/e Robotics Motion Lab)
-This is the repository for holding the codes, 3D printing files and instructions for the tactile sensor test bed at TU/e Robotics &amp; Motion Lab.
-## Setting up environment
+# Tactile Sensor Array Test Bed
 
-The setup guide is mainly tested on Ubuntu 20.04. Subtle differences might exist for different operating systems and versions.
+TU/e Robotics & Motion Lab
+
+This repository contains code, 3D-printing files, and setup instructions for the tactile sensor array test bed at the TU/e Robotics & Motion Lab.
+
+The test bed is designed for controlled indentation experiments with tactile sensor arrays. It includes example scripts for controlling the CNC-based indenter and reading force measurements from a loadcell through a Z-SG amplifier module.
+
+## Repository structure
+
+```text
+.
+├── 3D_printed_parts/     # 3D-printable parts for the test bed
+├── scripts/              # Python scripts for CNC control and loadcell readout
+├── LICENSE               # MIT license
+└── README.md
+```
+
+## Setting up the environment
+
+The setup guide has mainly been tested on Ubuntu 20.04. Small differences may exist for other operating systems or versions.
 
 Clone this repository and enter the repository folder:
 
@@ -11,17 +27,30 @@ git clone https://github.com/HaodongZheng/Tactile-Sensor-Array-Test-Bed-TU-e-Rob
 cd Tactile-Sensor-Array-Test-Bed-TU-e-Robotics-Motion-Lab
 ```
 
-It is recommended to use a Python virtual environment to avoid conflicts with other Python packages:
+It is recommended to use a Python virtual environment to avoid conflicts with other Python packages. Here, the environment is named `tactile-testbed-env`:
 
 ```bash
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv tactile-testbed-env
+source tactile-testbed-env/bin/activate
 ```
 
-On Windows, activate the virtual environment with:
+On Ubuntu/Debian, if the `venv` module is not available, install it with:
 
 ```bash
-.venv\Scripts\activate
+sudo apt update
+sudo apt install python3-venv
+```
+
+On Windows Command Prompt, activate the virtual environment with:
+
+```bat
+tactile-testbed-env\Scripts\activate.bat
+```
+
+On Windows PowerShell, use:
+
+```powershell
+.\tactile-testbed-env\Scripts\Activate.ps1
 ```
 
 Install the required Python dependencies:
@@ -37,7 +66,11 @@ If you do not want to use a virtual environment, you can also install the depend
 python3 -m pip install numpy pymodbus pyserial
 ```
 
-On Linux, the serial device usually appears as `/dev/ttyUSB0`. If you get a permission error when opening the serial port, add your user to the `dialout` group:
+## Serial port permissions on Linux
+
+On Linux, the CNC controller or loadcell amplifier usually appears as a serial device such as `/dev/ttyUSB0`.
+
+If you get a permission error when opening the serial port, add your user to the `dialout` group:
 
 ```bash
 sudo usermod -a -G dialout $USER
@@ -45,41 +78,114 @@ sudo usermod -a -G dialout $USER
 
 After running this command, log out and log back in for the permission change to take effect.
 
+## Safety concerns
+
+Although the CNC machine has a stop switch, the stop switch may not fully protect the indentation head, the tactile sensor, or the wooden bed in all configurations.
+
+Depending on the mounted indentation head and sensor setup, an incorrect command may cause the indentation head to collide with the sensor or the bed. Before running any motion command, carefully check:
+
+* the current position of the indentation head;
+* the coordinate frame and origin setting;
+* the target `X`, `Y`, and `Z` positions;
+* the feedrate;
+* the available clearance above the sensor.
+
+Always start with slow and small motions when testing a new setup.
+
+## Controlling the CNC machine with G-code
+
+The movement of the indentation head is controlled by sending G-code commands to the CNC machine.
+
+A ready-to-use Python class, `NewIndenter`, is provided in:
+
+```text
+scripts/NewIndenter.py
+```
+
+The script initializes the serial connection, sets the controller to millimeter units with `G21`, enables absolute positioning with `G90`, and provides a simple `move_to(...)` function for commanding the indentation head.
+
 You can test the CNC controller script with:
 
 ```bash
 python scripts/NewIndenter.py
 ```
 
-and test the loadcell readout script with:
-
-```bash
-python scripts/LoadcellReader.py
-```
-
-On Windows, change the serial port in the scripts to the correct COM port, for example:
+Before running an experiment, set the current position as the origin only after you have carefully checked the physical setup:
 
 ```python
-PORT = "COM3"
+indenter.set_current_position_as_origin()
 ```
 
-for the loadcell reader, or:
+Then the indentation head can be moved with:
+
+```python
+indenter.move_to(x=0, y=0, z=0, feedrate=1000)
+```
+
+The unit of length is millimeters.
+
+On Windows, change the serial port in the script to the correct COM port, for example:
 
 ```python
 INDENTER_PORT = "COM9"
 ```
 
-for the CNC controller.
+On Linux, the port is usually something like:
 
-## Safty Concern
-Although the CNC machine comes with a stop switch, depending on the indenter head and the sensor setup of your choice, the stop switch may not protect the indentation head from hitting the wooden bed or your sensors, which could cause damage to both the setup and the sensors. Please be extra cautious and make sure you do not send commands that would cause damage to the setup.
+```python
+INDENTER_PORT = "/dev/ttyUSB0"
+```
 
-## Controlling CNC via G code
-The movement of the indentation head is controlled by sending G code to the CNC machine. If you want to learn about G code, checkout this. A ready-to-use class "NewIndenter" is provided with example usages in scripts/NewIndenter.py to make the process easy, please read the annotations in the file.
+## Loadcell readout through Modbus RTU
 
-## Loadcell readout through serial port via ModBus protocol
-The loadcell readings goes through Z-SG amplifier module (check mannual), at current stage, max readout frequency is at 100Hz. It is also possible to read the amplified analog signal, the current setup is designed to perform readout through the serial port. A ready-to-use class "LoadcellReader" is provided with example usages in scripts/LoadcellReader.py, please read the annotations in the file.
+The loadcell signal is read through a Z-SG amplifier module using Modbus RTU over a serial connection.
 
+A ready-to-use Python class, `LoadcellReader`, is provided in:
 
-## Making your own easy-swap indentation head for testing
-In this repository I provide a template for making your own indentation head, which can be easily mounted on the setup without the need of extra tools.
+```text
+scripts/LoadcellReader.py
+```
+
+The script reads the loadcell value through the serial port and returns the force reading in newtons.
+
+You can test the loadcell readout script with:
+
+```bash
+python scripts/LoadcellReader.py
+```
+
+On Linux, the default serial port is:
+
+```python
+PORT = "/dev/ttyUSB0"
+```
+
+On Windows, change the port to the correct COM port, for example:
+
+```python
+PORT = "COM3"
+```
+
+The default baudrate in the script is:
+
+```python
+BAUDRATE = 57600
+```
+
+Make sure that the serial port, baudrate, and Modbus slave address match the configuration of your Z-SG amplifier module.
+
+## Making your own easy-swap indentation head
+
+This repository provides a template for making custom indentation heads that can be mounted on the test bed without additional tools.
+
+The 3D-printable parts are provided in:
+
+```text
+3D_printed_parts/
+```
+
+When designing a new indentation head, make sure that it does not collide with the tactile sensor, the mounting structure, or the wooden bed during motion.
+
+## License
+
+This project is licensed under the MIT License. See the `LICENSE` file for details.
