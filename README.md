@@ -8,11 +8,22 @@ The test bed is designed for controlled indentation experiments with tactile sen
 
 ```text
 .
-├── 3D_printed_parts/     # 3D-printable parts for the test bed
-├── scripts/              # Python scripts for CNC control and loadcell readout
-├── LICENSE               # MIT license
+├── 3D_printed_parts/
+│   ├── README.md
+│   ├── swap_indenter_head_template.step
+│   └── swap_indenter_head_template.stl
+│
+├── scripts/
+│   ├── README.md
+│   ├── LoadcellReader.py
+│   └── NewIndenter.py
+│
+├── LICENSE
 └── README.md
 ```
+
+The `scripts/` folder contains the Python scripts for controlling the CNC-based indenter and reading the loadcell signal. The `3D_printed_parts/` folder contains the template files for making an easy-swap indentation head.
+
 
 ## Setting up the environment
 
